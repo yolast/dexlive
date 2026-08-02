@@ -4,16 +4,15 @@ export async function GET(req) {
   try {
     // 1. ADVANCED MULTI-CHECKPOINT CLEANUP STEP:
     // Target tokens older than 30 minutes that exhibit definitive dead-coin fingerprints:
-    // - Bonding curve progress < 3%
-    // - 24h Volume < $100 (or dead velocity)
-    // - Low market cap < $5,000
+    // - Created > 30 minutes ago
+    // - Market cap < $5,000
     const thirtyMinutesAgoMs = Date.now() - (30 * 60 * 1000);
     
     const { error: deleteError } = await supabase
       .from('tokens_history')
       .delete()
       .lt('created_timestamp', thirtyMinutesAgoMs)
-      .or('market_cap.lt.5000,usd_market_cap.lt.5000');
+      .lt('market_cap', 5000);
 
     if (deleteError) {
       console.warn("Cleanup warning:", deleteError.message);
@@ -30,40 +29,40 @@ export async function GET(req) {
     });
 
     if (!res.ok) {
-      throw new Error("Failed to fetch from Pump.fun");
+      throw new Error(`Failed to fetch from Pump.fun: ${res.statusText}`);
     }
 
     const coins = await res.json();
-    if (!coins || coins.length === 0) {
-      return new Response(JSON.stringify({ success: true, message: "No coins found to ingest" }), {
+    if (!coins || !Array.isArray(coins) || coins.length === 0) {
+      return new Response(JSON.stringify({ success: true, message: "No coins found to ingest from Pump.fun" }), {
         status: 200,
         headers: { "Content-Type": "application/json" }
       });
     }
 
-    // Map and format rows for Supabase including structural checkpoints
+    // 3. MAP & FORMAT ROWS: Ensure correct schema mapping
     const rowsToInsert = coins.map(coin => ({
       mint: coin.mint,
-      name: coin.name,
-      ticker: coin.symbol,
-      market_cap: coin.usd_market_cap || 0,
+      name: coin.name || "Unknown",
+      ticker: coin.symbol || "UNKNOWN",
+      market_cap: coin.usd_market_cap || coin.market_cap || 0,
       multiplier: "1.0X",
       created_timestamp: coin.created_timestamp || Date.now(),
       raw_payload: coin
     }));
 
-    // Upsert fresh tokens into Supabase (skips duplicates using 'mint' unique constraint)
+    // 4. UPSERT STEP: Insert fresh tokens into Supabase (skips duplicates using 'mint' unique constraint)
     const { error: insertError } = await supabase
       .from('tokens_history')
-      .upsert(rowsToInstert, { onConflict: 'mint' });
+      .upsert(rowsToInsert, { onConflict: 'mint' });
 
     if (insertError) {
-      throw new Error(insertError.message);
+      throw new Error(`Supabase Insert Error: ${insertError.message}`);
     }
 
     return new Response(JSON.stringify({ 
       success: true, 
-      message: `Successfully purged dead coins (>30m old, <$5k MC, stagnant curve) and ingested ${rowsToInsert.length} active tokens.` 
+      message: `Successfully cleaned dead coins and ingested ${rowsToInsert.length} active tokens from Pump.fun.` 
     }), {
       status: 200,
       headers: { "Content-Type": "application/json" }
