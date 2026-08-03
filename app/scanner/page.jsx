@@ -1,5 +1,6 @@
 "use client";
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
 import RequireSubscription from "@/components/RequireSubscription";
 
 export default function ScannerPage() {
@@ -7,6 +8,12 @@ export default function ScannerPage() {
   const [isScanning, setIsScanning] = useState(false);
   const [logs, setLogs] = useState([]);
   const [scanStatus, setScanStatus] = useState('IDLE'); // IDLE, RUNNING, FINISHED
+
+  // Telemetry & Feed State
+  const [stats, setStats] = useState({ totalCoins: 0, eligibleCoins: 0, trendingCount: 0 });
+  const [trendingCoins, setTrendingCoins] = useState([]);
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState("");
 
   const momentumOptions = [
     { id: '1_2x', label: '1. 1–2X Early Breakout (+100%)' },
@@ -23,6 +30,30 @@ export default function ScannerPage() {
     const time = new Date().toLocaleTimeString();
     setLogs(prev => [...prev, `[${time}] ${message}`]);
   };
+
+  // Fetch telemetry metrics, counters, and trending data from secure backend route
+  const fetchScannerTelemetry = async () => {
+    try {
+      const res = await fetch('/api/proscanner/secure-data');
+      const data = await res.json();
+      if (data.success) {
+        setStats(data.metrics || { totalCoins: 0, eligibleCoins: 0, trendingCount: 0 });
+        setTrendingCoins(data.trendingCoins || []);
+        setLastUpdated(new Date().toLocaleTimeString());
+      }
+    } catch (err) {
+      console.error("Failed to load telemetry data:", err);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchScannerTelemetry();
+    // Auto-refresh every 2 minutes (120,000 ms) matching your cron job schedule
+    const interval = setInterval(fetchScannerTelemetry, 120000);
+    return () => clearInterval(interval);
+  }, []);
 
   async function handleRunAnalysis() {
     setIsScanning(true);
@@ -68,28 +99,110 @@ export default function ScannerPage() {
 
   return (
     <RequireSubscription>
-      <div className="min-h-screen bg-black text-white p-8">
-        <div className="max-w-4xl mx-auto">
+      <div className="min-h-screen bg-black text-white p-6 md:p-8">
+        <div className="max-w-6xl mx-auto space-y-8">
           
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-3xl font-extrabold text-emerald-400 mb-2">DexLive Momentum Control</h1>
-            <p className="text-zinc-400 text-sm">
-              Select your target strategy and execute institutional-grade scans with real-time hybrid verification.
-            </p>
+          {/* Header & Auto-Refresh Status */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-xl">
+            <div>
+              <h1 className="text-3xl font-extrabold text-emerald-400 mb-1">DEXLive ProScanner Hub</h1>
+              <p className="text-zinc-400 text-sm">
+                Real-time Solana memecoin telemetry & institutional-grade strategy execution.
+              </p>
+            </div>
+            <div className="text-xs text-zinc-400 bg-zinc-950 px-3.5 py-2 rounded-xl border border-zinc-800 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Auto-syncing every 2m {lastUpdated && `(Last: ${lastUpdated})`}
+            </div>
           </div>
 
-          {/* TOP CONTROLS CARD: Strategy Selector + Single Run Button */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-6 shadow-xl">
-            <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">
-              Select Target Strategy Option
+          {/* CONCEPT 2: Monthly Coins Counter / DB Telemetry Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl flex items-center justify-between shadow-lg">
+              <div>
+                <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Total Coins Added (DB)</p>
+                <h3 className="text-3xl font-extrabold text-cyan-400 mt-2">
+                  {loadingStats ? "..." : stats.totalCoins.toLocaleString()}
+                </h3>
+                <p className="text-xs text-zinc-500 mt-1">Lifetime total raw ingestion count</p>
+              </div>
+              <div className="p-4 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-cyan-400 text-2xl">📦</div>
+            </div>
+
+            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl flex items-center justify-between shadow-lg">
+              <div>
+                <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Eligible Coins to Analyze</p>
+                <h3 className="text-3xl font-extrabold text-emerald-400 mt-2">
+                  {loadingStats ? "..." : stats.eligibleCoins.toLocaleString()}
+                </h3>
+                <p className="text-xs text-zinc-500 mt-1">Post-cleanup active pool (Market Cap ≥ $5k)</p>
+              </div>
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-2xl">⚡</div>
+            </div>
+          </div>
+
+          {/* CONCEPT 3: Last 24 Hours Trending Coins (≥ 100% Gains, Negatives Removed) */}
+          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-xl space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2 border-b border-zinc-800">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                🔥 Last 24h High-Momentum Coins 
+                <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2.5 py-0.5 rounded-full font-medium">≥ +100% Gains</span>
+              </h2>
+              <span className="text-xs text-zinc-400">{trendingCoins.length} qualifying tokens active</span>
+            </div>
+
+            {trendingCoins.length === 0 ? (
+              <div className="text-center py-8 text-zinc-500 text-sm border border-dashed border-zinc-800 rounded-xl">
+                {loadingStats ? "Scanning mempool..." : "No coins meeting the +100% 24h gain threshold currently."}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-zinc-950 text-zinc-400 border-b border-zinc-800">
+                    <tr>
+                      <th className="p-3">Token Name</th>
+                      <th className="p-3">Symbol</th>
+                      <th className="p-3">Market Cap</th>
+                      <th className="p-3">24h Gain</th>
+                      <th className="p-3 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800/50">
+                    {trendingCoins.map((coin) => (
+                      <tr key={coin.mint} className="hover:bg-zinc-800/40 transition-colors">
+                        <td className="p-3 font-medium text-white">{coin.name}</td>
+                        <td className="p-3 text-zinc-400 uppercase font-mono">{coin.symbol}</td>
+                        <td className="p-3 text-zinc-300">${Number(coin.market_cap || 0).toLocaleString()}</td>
+                        <td className="p-3 text-emerald-400 font-bold font-mono">+{coin.price_change_24h}%</td>
+                        <td className="p-3 text-right">
+                          <a 
+                            href={`https://pump.fun/coin/${coin.mint}`} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs rounded-lg font-medium transition shadow-sm"
+                          >
+                            View ↗
+                          </a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* CONCEPT 1: Target Strategy Options to RUN ANALYSIS */}
+          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-xl space-y-4">
+            <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+              Select Target Strategy Option to Run Analysis
             </label>
             
             <div className="flex flex-col md:flex-row gap-4 items-center">
               <select
                 value={selectedStrategy}
                 onChange={(e) => setSelectedStrategy(e.target.value)}
-                className="w-full bg-black border border-zinc-800 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500 transition text-sm"
+                className="w-full bg-black border border-zinc-800 text-white rounded-xl px-4 py-3.5 focus:outline-none focus:border-emerald-500 transition text-sm"
               >
                 {momentumOptions.map(opt => (
                   <option key={opt.id} value={opt.id}>
@@ -101,7 +214,7 @@ export default function ScannerPage() {
               <button
                 onClick={handleRunAnalysis}
                 disabled={isScanning}
-                className="w-full md:w-auto bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-3 px-8 rounded-xl transition whitespace-nowrap disabled:opacity-50 text-sm shadow-lg shadow-emerald-500/10"
+                className="w-full md:w-auto bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-3.5 px-8 rounded-xl transition whitespace-nowrap disabled:opacity-50 text-sm shadow-lg shadow-emerald-500/10 cursor-pointer"
               >
                 {isScanning ? "Running Analysis..." : "RUN ANALYSIS →"}
               </button>
