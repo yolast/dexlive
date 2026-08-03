@@ -1,51 +1,67 @@
 "use client";
-
 import { useUser } from "@clerk/nextjs";
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function RequireSubscription({ children }) {
-  const { user, isLoaded } = useUser();
+  const { user, isLoaded, isSignedIn } = useUser();
   const router = useRouter();
+
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      router.push("/sign-in");
+    }
+  }, [isLoaded, isSignedIn, router]);
 
   if (!isLoaded) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center text-zinc-400 text-sm">
-        Verifying subscription access...
+      <div className="flex h-screen items-center justify-center bg-black text-white">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-400"></div>
+        <span className="ml-3 text-xs text-zinc-400">Verifying access...</span>
       </div>
     );
   }
 
-  if (!user) {
-    router.push("/");
+  if (!isSignedIn) {
     return null;
   }
 
-  const metadata = user.publicMetadata || {};
-  const expiry = metadata.subscriptionExpiry;
-  const isExpired = !expiry || new Date(expiry) < new Date();
+  // Normalize and check all emails for Super Admin Bypass
+  const emails = user.emailAddresses?.map(e => e.emailAddress?.toLowerCase().trim()) || [];
+  const primaryEmail = user.primaryEmailAddress?.emailAddress?.toLowerCase().trim();
+  
+  const isSuperAdmin = 
+    primaryEmail === "rajadsinfo@gmail.com" || 
+    emails.includes("rajadsinfo@gmail.com");
 
-  if (isExpired) {
+  if (isSuperAdmin) {
+    return children;
+  }
+
+  // Standard Subscription Check for regular users
+  const metadata = user.publicMetadata || {};
+  const tier = metadata.subscriptionTier;
+  const expiry = metadata.subscriptionExpiry || 0;
+  const hasValidSub = Boolean(tier && expiry > Date.now());
+
+  if (!hasValidSub) {
     return (
       <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 text-center">
-        <div className="bg-zinc-900/80 border border-red-500/30 rounded-2xl p-8 max-w-md w-full shadow-2xl">
-          <span className="bg-red-500/10 text-red-400 text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider">
-            Access Restricted
-          </span>
-          <h2 className="text-2xl font-extrabold mt-4 text-white">Subscription Expired</h2>
-          <p className="text-zinc-400 text-sm mt-2 leading-relaxed">
-            Your 7-day free trial or active subscription pass has expired. Renew your plan to instantly regain access to the Pro Scanner and momentum analytics suites.
+        <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-2xl max-w-md shadow-2xl">
+          <div className="text-red-500 font-bold text-lg mb-2">ACCESS RESTRICTED</div>
+          <p className="text-zinc-400 text-xs mb-6">
+            This feature requires an active DEXLive subscription or free trial. Upgrade your wallet to unlock institutional-grade scanning.
           </p>
-          <button
-            onClick={() => router.push("/subscription?expired=true")}
-            className="mt-8 w-full bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold py-3 rounded-xl transition text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/10"
+          <a
+            href="/subscription"
+            className="inline-block bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-3 px-6 rounded-xl transition text-xs shadow-lg shadow-emerald-500/10"
           >
-            Renew Subscription Now →
-          </button>
+            Choose Subscription Plan →
+          </a>
         </div>
       </div>
     );
   }
 
-  return <>{children}</>;
+  return children;
 }
