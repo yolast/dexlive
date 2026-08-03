@@ -51,10 +51,8 @@ export default function ScannerPage() {
 
   useEffect(() => {
     fetchScannerTelemetry();
-    // Sync with cron every 1 minute
     const interval = setInterval(fetchScannerTelemetry, 60000);
 
-    // Live ticker effect for live feel
     const liveTicker = setInterval(() => {
       setStats(prev => ({
         ...prev,
@@ -116,12 +114,11 @@ export default function ScannerPage() {
       <div className="min-h-screen bg-black text-white p-6 md:p-8">
         <div className="max-w-6xl mx-auto space-y-8">
           
-          {/* Header & Auto-Refresh Status */}
+          {/* Header & Auto-Refresh Status (Flash icon removed) */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-xl">
             <div>
-              <h1 className="text-3xl font-extrabold text-emerald-400 mb-1 flex items-center gap-2">
-                DEXLive ProScanner Hub 
-                <span className="text-xl animate-bounce">⚡</span>
+              <h1 className="text-3xl font-extrabold text-emerald-400 mb-1">
+                DEXLive ProScanner Hub
               </h1>
               <p className="text-zinc-400 text-sm">
                 Real-time Solana memecoin telemetry & institutional-grade strategy execution.
@@ -163,14 +160,14 @@ export default function ScannerPage() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2 border-b border-zinc-800">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 🔥 Last 2h High-Momentum Coins 
-                <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2.5 py-0.5 rounded-full font-medium animate-pulse">≥ +100% Gains</span>
+                <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2.5 py-0.5 rounded-full font-medium animate-pulse">Live Ranking</span>
               </h2>
-              <span className="text-xs text-zinc-400">{trendingCoins.length} qualifying tokens active</span>
+              <span className="text-xs text-zinc-400">{trendingCoins.length} active qualifying tokens</span>
             </div>
 
             {trendingCoins.length === 0 ? (
               <div className="text-center py-8 text-zinc-500 text-sm border border-dashed border-zinc-800 rounded-xl">
-                {loadingStats ? "Scanning mempool..." : "No coins meeting the +100% gain threshold in the last 2 hours currently."}
+                {loadingStats ? "Scanning mempool..." : "No active momentum tokens found in the last 2 hours."}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -190,7 +187,9 @@ export default function ScannerPage() {
                         <td className="p-3 font-medium text-white">{coin.name}</td>
                         <td className="p-3 text-zinc-400 uppercase font-mono">{coin.ticker}</td>
                         <td className="p-3 text-zinc-300">${Number(coin.market_cap || 0).toLocaleString()}</td>
-                        <td className="p-3 text-emerald-400 font-bold font-mono">+{coin.price_change_24h}%</td>
+                        <td className={`p-3 font-bold font-mono ${Number(coin.price_change_24h) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {Number(coin.price_change_24h) >= 0 ? `+${coin.price_change_24h}%` : `${coin.price_change_24h}%`}
+                        </td>
                         <td className="p-3 text-right">
                           <a 
                             href={`https://pump.fun/coin/${coin.mint}`} 

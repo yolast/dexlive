@@ -27,12 +27,11 @@ export async function GET(req) {
 
     if (eligibleError) throw new Error(eligibleError.message);
 
-    // Filter high-momentum coins strictly within the last 2 hours (Gain >= 100%)
+    // Fetch top momentum coins from the last 2 hours, sorted by highest gains
     const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000);
     const { data: trendingCoins, error: trendingError } = await supabase
       .from('tokens_history')
       .select('mint, name, ticker, market_cap, price_change_24h, created_timestamp')
-      .gte('price_change_24h', 100)
       .gte('created_timestamp', twoHoursAgo)
       .order('price_change_24h', { ascending: false })
       .limit(10);
