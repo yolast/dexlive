@@ -12,19 +12,9 @@ const isProtectedRange = createRouteMatcher([
 export default clerkMiddleware(async (auth, req) => {
   if (isProtectedRange(req)) {
     const session = await auth();
-    const userId = session?.userId;
-
-    if (!userId) {
+    if (!session?.userId) {
       return auth.redirectToSignIn();
     }
-
-    // Super Admin Bypass for rajadsinfo@gmail.com
-    const userEmail = session?.sessionClaims?.email || session?.sessionClaims?.primaryEmailAddress;
-    if (userEmail === "rajadsinfo@gmail.com") {
-      return NextResponse.next();
-    }
-
-    await auth.protect();
   }
   
   return NextResponse.next();
