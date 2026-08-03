@@ -1,7 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 
-const isProtectedRoute = createRouteMatcher([
+const isProtectedRange = createRouteMatcher([
   '/proscanner(.*)',
   '/subscription(.*)',
   '/scanner(.*)',
@@ -10,21 +10,23 @@ const isProtectedRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
-  const session = await auth();
-  const userId = session?.userId;
+  if (isProtectedRange(req)) {
+    const session = await auth();
+    const userId = session?.userId;
 
-  if (isProtectedRoute(req)) {
     if (!userId) {
       return auth.redirectToSignIn();
     }
 
-    // Super Admin Bypass for rajadsinfo@gmail.com via session claims or token attributes
+    // Super Admin Bypass for rajadsinfo@gmail.com
     const userEmail = session?.sessionClaims?.email || session?.sessionClaims?.primaryEmailAddress;
     if (userEmail === "rajadsinfo@gmail.com") {
       return NextResponse.next();
     }
-  }
 
+    await auth.protect();
+  }
+  
   return NextResponse.next();
 });
 
