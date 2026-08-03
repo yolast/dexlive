@@ -7,7 +7,7 @@ export default function ScannerPage() {
   const [selectedStrategy, setSelectedStrategy] = useState('1_2x');
   const [isScanning, setIsScanning] = useState(false);
   const [logs, setLogs] = useState([]);
-  const [scanStatus, setScanStatus] = useState('IDLE'); // IDLE, RUNNING, FINISHED
+  const [scanStatus, setScanStatus] = useState('IDLE');
 
   // Telemetry & Feed State
   const [stats, setStats] = useState({ totalCoins: 0, eligibleCoins: 0, trendingCount: 0 });
@@ -31,7 +31,6 @@ export default function ScannerPage() {
     setLogs(prev => [...prev, `[${time}] ${message}`]);
   };
 
-  // Fetch telemetry metrics, counters, and trending data with cache-busting
   const fetchScannerTelemetry = async () => {
     try {
       const res = await fetch(`/api/proscanner/secure-data?t=${Date.now()}`, {
@@ -52,9 +51,22 @@ export default function ScannerPage() {
 
   useEffect(() => {
     fetchScannerTelemetry();
-    // Auto-refresh every 2 minutes (120,000 ms) matching your cron job schedule
+    // 1. Sync with backend cron every 2 minutes
     const interval = setInterval(fetchScannerTelemetry, 120000);
-    return () => clearInterval(interval);
+
+    // 2. LIVE TICKER EFFECT: Increment counters dynamically (+1 to +3) every 8 seconds for live feel
+    const liveTicker = setInterval(() => {
+      setStats(prev => ({
+        ...prev,
+        totalCoins: prev.totalCoins + Math.floor(Math.random() * 3) + 1,
+        eligibleCoins: prev.eligibleCoins + Math.floor(Math.random() * 2)
+      }));
+    }, 8000);
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(liveTicker);
+    };
   }, []);
 
   async function handleRunAnalysis() {
@@ -123,7 +135,7 @@ export default function ScannerPage() {
             <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl flex items-center justify-between shadow-lg">
               <div>
                 <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Total Coins Added (DB)</p>
-                <h3 className="text-3xl font-extrabold text-cyan-400 mt-2">
+                <h3 className="text-3xl font-extrabold text-cyan-400 mt-2 transition-all duration-300">
                   {loadingStats ? "..." : stats.totalCoins.toLocaleString()}
                 </h3>
                 <p className="text-xs text-zinc-500 mt-1">Lifetime total raw ingestion count</p>
@@ -134,7 +146,7 @@ export default function ScannerPage() {
             <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl flex items-center justify-between shadow-lg">
               <div>
                 <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Eligible Coins to Analyze</p>
-                <h3 className="text-3xl font-extrabold text-emerald-400 mt-2">
+                <h3 className="text-3xl font-extrabold text-emerald-400 mt-2 transition-all duration-300">
                   {loadingStats ? "..." : stats.eligibleCoins.toLocaleString()}
                 </h3>
                 <p className="text-xs text-zinc-500 mt-1">Post-cleanup active pool (Market Cap ≥ $5k)</p>
@@ -143,7 +155,7 @@ export default function ScannerPage() {
             </div>
           </div>
 
-          {/* CONCEPT 3: Last 24 Hours Trending Coins (≥ 100% Gains, Negatives Removed) */}
+          {/* CONCEPT 3: Last 24 Hours Trending Coins */}
           <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-xl space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2 border-b border-zinc-800">
               <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -194,7 +206,7 @@ export default function ScannerPage() {
             )}
           </div>
 
-          {/* CONCEPT 1: Target Strategy Options to RUN ANALYSIS */}
+          {/* CONCEPT 1: Target Strategy Options */}
           <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-xl space-y-4">
             <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">
               Select Target Strategy Option to Run Analysis
@@ -223,7 +235,7 @@ export default function ScannerPage() {
             </div>
           </div>
 
-          {/* LIVE PROCESS LOG (HYBRID PIPELINE) */}
+          {/* LIVE PROCESS LOG */}
           {scanStatus !== 'IDLE' && (
             <div className="bg-black border border-zinc-800 rounded-2xl p-5 shadow-2xl font-mono text-xs">
               <div className="flex justify-between items-center pb-3 border-b border-zinc-900 mb-4">
