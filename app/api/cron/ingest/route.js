@@ -8,7 +8,6 @@ export async function GET(req) {
   try {
     console.log("Cron analytical ingestion started at:", new Date().toISOString());
 
-    // Fetch live Solana pairs from DexScreener search API
     const res = await fetch("https://api.dexscreener.com/latest/dex/search?q=SOL", {
       headers: { "Accept": "application/json" },
       cache: 'no-store'
@@ -28,7 +27,6 @@ export async function GET(req) {
     let insertedCount = 0;
 
     for (const pair of pairs) {
-      // Filter strictly for Solana chain tokens
       if (pair.chainId?.toLowerCase() !== 'solana' || !pair.baseToken?.address) continue;
 
       const payload = {
@@ -36,10 +34,8 @@ export async function GET(req) {
         name: pair.baseToken.name || "Unknown",
         ticker: pair.baseToken.symbol || "UNKNOWN",
         market_cap: pair.marketCap || pair.fdv || 0,
-        price_change_24h: pair.priceChange?.h24 || 0,
-        created_timestamp: pair.pairCreatedAt || Date.now(),
-        
-        // Extended Analytical Columns for Upcoming Modules
+        price_change_24h: pair.priceChange?.h24 || pair.priceChange?.h1 || 0,
+        created_timestamp: pair.pairCreatedAt ? new Date(pair.pairCreatedAt).getTime() : Date.now(),
         liquidity_usd: pair.liquidity?.usd || 0,
         volume_h24: pair.volume?.h24 || 0,
         volume_h1: pair.volume?.h1 || 0,
@@ -58,7 +54,6 @@ export async function GET(req) {
       }
     }
 
-    // Database Cleanup: Purge tokens older than 45 mins with market cap < $3,000
     const cutoffTimeMs = Date.now() - (45 * 60 * 1000);
     await supabase
       .from('tokens_history')
@@ -68,7 +63,7 @@ export async function GET(req) {
 
     return NextResponse.json({ 
       success: true, 
-      message: `Successfully synchronized ${insertedCount} tokens with extended analytics.`,
+      message: `Successfully synchronized ${insertedCount} tokens with real market data.`,
       timestamp: new Date().toISOString()
     }, { status: 200 });
 

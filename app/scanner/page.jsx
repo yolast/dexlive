@@ -51,14 +51,14 @@ export default function ScannerPage() {
 
   useEffect(() => {
     fetchScannerTelemetry();
-    // 1. Sync with backend cron every 2 minutes
-    const interval = setInterval(fetchScannerTelemetry, 120000);
+    // Sync with cron every 1 minute
+    const interval = setInterval(fetchScannerTelemetry, 60000);
 
-    // 2. LIVE TICKER EFFECT: Increment counters dynamically (+1 to +3) every 8 seconds for live feel
+    // Live ticker effect for live feel
     const liveTicker = setInterval(() => {
       setStats(prev => ({
         ...prev,
-        totalCoins: prev.totalCoins + Math.floor(Math.random() * 3) + 1,
+        totalCoins: prev.totalCoins + Math.floor(Math.random() * 2) + 1,
         eligibleCoins: prev.eligibleCoins + Math.floor(Math.random() * 2)
       }));
     }, 8000);
@@ -119,18 +119,21 @@ export default function ScannerPage() {
           {/* Header & Auto-Refresh Status */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-xl">
             <div>
-              <h1 className="text-3xl font-extrabold text-emerald-400 mb-1">DEXLive ProScanner Hub</h1>
+              <h1 className="text-3xl font-extrabold text-emerald-400 mb-1 flex items-center gap-2">
+                DEXLive ProScanner Hub 
+                <span className="text-xl animate-bounce">⚡</span>
+              </h1>
               <p className="text-zinc-400 text-sm">
                 Real-time Solana memecoin telemetry & institutional-grade strategy execution.
               </p>
             </div>
             <div className="text-xs text-zinc-400 bg-zinc-950 px-3.5 py-2 rounded-xl border border-zinc-800 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              Auto-syncing every 2m {lastUpdated && `(Last: ${lastUpdated})`}
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+              Auto-syncing every 1m {lastUpdated && `(Last: ${lastUpdated})`}
             </div>
           </div>
 
-          {/* CONCEPT 2: Monthly Coins Counter / DB Telemetry Grid */}
+          {/* Telemetry Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl flex items-center justify-between shadow-lg">
               <div>
@@ -138,9 +141,9 @@ export default function ScannerPage() {
                 <h3 className="text-3xl font-extrabold text-cyan-400 mt-2 transition-all duration-300">
                   {loadingStats ? "..." : stats.totalCoins.toLocaleString()}
                 </h3>
-                <p className="text-xs text-zinc-500 mt-1">Lifetime total raw ingestion count</p>
+                <p className="text-xs text-zinc-500 mt-1">Lifetime total active raw ingestion count</p>
               </div>
-              <div className="p-4 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-cyan-400 text-2xl">📦</div>
+              <div className="p-4 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-cyan-400 text-2xl animate-pulse">📦</div>
             </div>
 
             <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl flex items-center justify-between shadow-lg">
@@ -151,23 +154,23 @@ export default function ScannerPage() {
                 </h3>
                 <p className="text-xs text-zinc-500 mt-1">Post-cleanup active pool (Market Cap ≥ $5k)</p>
               </div>
-              <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-2xl">⚡</div>
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-2xl animate-bounce">⚡</div>
             </div>
           </div>
 
-          {/* CONCEPT 3: Last 24 Hours Trending Coins */}
+          {/* Last 2h High-Momentum Coins */}
           <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-xl space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2 border-b border-zinc-800">
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                🔥 Last 24h High-Momentum Coins 
-                <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2.5 py-0.5 rounded-full font-medium">≥ +100% Gains</span>
+                🔥 Last 2h High-Momentum Coins 
+                <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2.5 py-0.5 rounded-full font-medium animate-pulse">≥ +100% Gains</span>
               </h2>
               <span className="text-xs text-zinc-400">{trendingCoins.length} qualifying tokens active</span>
             </div>
 
             {trendingCoins.length === 0 ? (
               <div className="text-center py-8 text-zinc-500 text-sm border border-dashed border-zinc-800 rounded-xl">
-                {loadingStats ? "Scanning mempool..." : "No coins meeting the +100% 24h gain threshold currently."}
+                {loadingStats ? "Scanning mempool..." : "No coins meeting the +100% gain threshold in the last 2 hours currently."}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -175,9 +178,9 @@ export default function ScannerPage() {
                   <thead className="bg-zinc-950 text-zinc-400 border-b border-zinc-800">
                     <tr>
                       <th className="p-3">Token Name</th>
-                      <th className="p-3">Symbol</th>
+                      <th className="p-3">Ticker</th>
                       <th className="p-3">Market Cap</th>
-                      <th className="p-3">24h Gain</th>
+                      <th className="p-3">2h Gain</th>
                       <th className="p-3 text-right">Action</th>
                     </tr>
                   </thead>
@@ -185,7 +188,7 @@ export default function ScannerPage() {
                     {trendingCoins.map((coin) => (
                       <tr key={coin.mint} className="hover:bg-zinc-800/40 transition-colors">
                         <td className="p-3 font-medium text-white">{coin.name}</td>
-                        <td className="p-3 text-zinc-400 uppercase font-mono">{coin.symbol}</td>
+                        <td className="p-3 text-zinc-400 uppercase font-mono">{coin.ticker}</td>
                         <td className="p-3 text-zinc-300">${Number(coin.market_cap || 0).toLocaleString()}</td>
                         <td className="p-3 text-emerald-400 font-bold font-mono">+{coin.price_change_24h}%</td>
                         <td className="p-3 text-right">
@@ -206,7 +209,7 @@ export default function ScannerPage() {
             )}
           </div>
 
-          {/* CONCEPT 1: Target Strategy Options */}
+          {/* Strategy Options */}
           <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-xl space-y-4">
             <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">
               Select Target Strategy Option to Run Analysis
@@ -235,7 +238,7 @@ export default function ScannerPage() {
             </div>
           </div>
 
-          {/* LIVE PROCESS LOG */}
+          {/* Live Process Log */}
           {scanStatus !== 'IDLE' && (
             <div className="bg-black border border-zinc-800 rounded-2xl p-5 shadow-2xl font-mono text-xs">
               <div className="flex justify-between items-center pb-3 border-b border-zinc-900 mb-4">
