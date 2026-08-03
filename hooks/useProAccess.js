@@ -8,10 +8,16 @@ export function useProAccess() {
     return { hasAccess: false, tier: null, loading: !isLoaded };
   }
 
-  const primaryEmail = user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress;
+  // Normalize and check all emails safely
+  const emails = user.emailAddresses?.map(e => e.emailAddress?.toLowerCase().trim()) || [];
+  const primaryEmail = user.primaryEmailAddress?.emailAddress?.toLowerCase().trim();
+
+  const isSuperAdmin = 
+    primaryEmail === "rajadsinfo@gmail.com" || 
+    emails.includes("rajadsinfo@gmail.com");
 
   // Super Admin Bypass
-  if (primaryEmail === "rajadsinfo@gmail.com") {
+  if (isSuperAdmin) {
     return { hasAccess: true, tier: "SUPER_ADMIN", loading: false };
   }
 
