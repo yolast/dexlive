@@ -31,10 +31,12 @@ export default function ScannerPage() {
     setLogs(prev => [...prev, `[${time}] ${message}`]);
   };
 
-  // Fetch telemetry metrics, counters, and trending data from secure backend route
+  // Fetch telemetry metrics, counters, and trending data with cache-busting
   const fetchScannerTelemetry = async () => {
     try {
-      const res = await fetch('/api/proscanner/secure-data');
+      const res = await fetch(`/api/proscanner/secure-data?t=${Date.now()}`, {
+        cache: 'no-store'
+      });
       const data = await res.json();
       if (data.success) {
         setStats(data.metrics || { totalCoins: 0, eligibleCoins: 0, trendingCount: 0 });

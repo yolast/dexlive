@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { verifyProAccess } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0; // Force zero caching so metrics update in real-time
 
 export async function GET(req) {
   try {
@@ -21,7 +22,7 @@ export async function GET(req) {
 
     if (totalError) throw new Error(`Total coins count error: ${totalError.message}`);
 
-    // 3. Eligible Coins Count - e.g., Market Cap >= $5,000 (Concept 2)
+    // 3. Eligible Coins Count - Market Cap >= $5,000 (Concept 2)
     const { count: eligibleCoins, error: eligibleError } = await supabase
       .from('tokens_history')
       .select('*', { count: 'exact', head: true })
@@ -50,7 +51,7 @@ export async function GET(req) {
 
     if (tokensError) throw new Error(`Tokens feed error: ${tokensError.message}`);
 
-    // 6. Return unified payload
+    // 6. Return unified payload with strict anti-caching headers
     return new Response(JSON.stringify({
       success: true,
       timestamp: new Date().toISOString(),
@@ -63,14 +64,22 @@ export async function GET(req) {
       tokens: tokens || []
     }), {
       status: 200,
-      headers: { "Content-Type": "application/json" }
+      headers: { 
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
+      }
     });
 
   } catch (err) {
     console.error("ProScanner API Error:", err);
     return new Response(JSON.stringify({ success: false, error: err.message }), {
       status: 500,
-      headers: { "Content-Type": "application/json" }
+      headers: { 
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate"
+      }
     });
   }
 }
