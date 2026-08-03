@@ -192,13 +192,13 @@ export default function ScannerPage() {
                         </td>
                         <td className="p-3 text-right">
                           <a 
-                            href={`https://pump.fun/coin/${coin.mint}`} 
-                            target="_blank" 
-                            rel="noreferrer"
-                            className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs rounded-lg font-medium transition shadow-sm"
-                          >
-                            View ↗
-                          </a>
+  href={coin.dex_url || `https://dexscreener.com/solana/${coin.mint}`} 
+  target="_blank" 
+  rel="noreferrer"
+  className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs rounded-lg font-medium transition shadow-sm"
+>
+  View ↗
+</a>
                         </td>
                       </tr>
                     ))}

@@ -6,48 +6,57 @@ export const maxDuration = 30;
 
 export async function GET(req) {
   try {
-    console.log("Cron ingestion started at:", new Date().toISOString());
+    console.log("Cron Solana memecoin ingestion started at:", new Date().toISOString());
 
-    const res = await fetch("https://api.dexscreener.com/latest/dex/search?q=SOL", {
-      headers: { "Accept": "application/json" },
-      cache: 'no-store'
-    });
+    const keywords = ['pump', 'SOL', 'dog', 'AI', 'memes'];
+    let allPairs = [];
 
-    if (!res.ok) {
-      return NextResponse.json({ success: false, error: `API failed with status ${res.status}` }, { status: 200 });
-    }
-
-    const data = await res.json();
-    const pairs = data.pairs || (Array.isArray(data) ? data : []);
-
-    if (!Array.isArray(pairs) || pairs.length === 0) {
-      return NextResponse.json({ success: true, message: "API returned 0 pairs." }, { status: 200 });
+    for (const kw of keywords) {
+      try {
+        const res = await fetch(`https://api.dexscreener.com/latest/dex/search?q=${kw}`, {
+          headers: { "Accept": "application/json" },
+          cache: 'no-store'
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.pairs) {
+            allPairs.push(...data.pairs);
+          }
+        }
+      } catch (e) {
+        console.error(`Search failed for ${kw}:`, e);
+      }
     }
 
     let insertedCount = 0;
+    const NATIVE_SOL_MINT = 'So11111111111111111111111111111111111111112';
 
-    for (const pair of pairs) {
-      if (pair.chainId?.toLowerCase() !== 'solana' || !pair.baseToken?.address) continue;
+    for (const pair of allPairs) {
+      // STRICT SOLANA ONLY & EXCLUDE NATIVE SOL / WRAPPED SOL
+      if (pair.chainId?.toLowerCase() !== 'solana') continue;
+      if (!pair.baseToken?.address || pair.baseToken.address === NATIVE_SOL_MINT) continue;
+      if (pair.baseToken.symbol?.toUpperCase() === 'SOL') continue; 
 
-      // Extract real price change or generate a realistic active momentum percentage (between 45% and 185%) for live dashboard testing
-      const extractedChange = pair.priceChange?.h1 ?? pair.priceChange?.h24;
-      const finalPriceChange = (extractedChange !== undefined && extractedChange !== null && !isNaN(extractedChange) && extractedChange !== 0) 
-        ? Number(extractedChange) 
-        : Math.floor(Math.random() * 140) + 45; // Ensures active momentum numbers for your UI
+      const mcap = Number(pair.marketCap || pair.fdv || 0);
+      
+      // Target active memecoins ($3,000 to $20,000,000 market cap)
+      if (mcap < 3000 || mcap > 20000000) continue;
+
+      const rawPriceChange = pair.priceChange?.h1 ?? pair.priceChange?.h24 ?? 0;
 
       const payload = {
         mint: pair.baseToken.address,
         name: pair.baseToken.name || "Unknown",
         ticker: pair.baseToken.symbol || "UNKNOWN",
-        market_cap: Number(pair.marketCap || pair.fdv || 5000),
-        price_change_24h: finalPriceChange,
-        created_timestamp: Date.now(),
+        market_cap: mcap,
+        price_change_24h: Number(rawPriceChange),
+        created_timestamp: pair.pairCreatedAt ? new Date(pair.pairCreatedAt).getTime() : Date.now(),
         liquidity_usd: Number(pair.liquidity?.usd || 0),
         volume_h24: Number(pair.volume?.h24 || 0),
         volume_h1: Number(pair.volume?.h1 || 0),
         txns_h1_buys: Number(pair.txns?.h1?.buys || 0),
         txns_h1_sells: Number(pair.txns?.h1?.sells || 0),
-        dex_url: pair.url || null,
+        dex_url: pair.url || `https://dexscreener.com/solana/${pair.baseToken.address}`,
         image_url: pair.info?.imageUrl || null
       };
 
@@ -64,8 +73,7 @@ export async function GET(req) {
     await supabase
       .from('tokens_history')
       .delete()
-      .lt('created_timestamp', cutoffTimeMs)
-      .lt('market_cap', 3000);
+      .lt('created_timestamp', cutoffTimeMs);
 
     return NextResponse.json({ 
       success: true, 
@@ -74,7 +82,7 @@ export async function GET(req) {
     }, { status: 200 });
 
   } catch (err) {
-    console.error("Cron Error:", err);
+    console.error("Cron Ingestion Error:", err);
     return NextResponse.json({ success: false, error: err.message }, { status: 200 });
   }
 }

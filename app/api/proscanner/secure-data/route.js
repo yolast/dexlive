@@ -16,21 +16,25 @@ export async function GET(req) {
 
     const { count: totalCoins, error: totalError } = await supabase
       .from('tokens_history')
-      .select('*', { count: 'exact', head: true });
+      .select('*', { count: 'exact', head: true })
+      .neq('ticker', 'SOL');
 
     if (totalError) throw new Error(totalError.message);
 
     const { count: eligibleCoins, error: eligibleError } = await supabase
       .from('tokens_history')
       .select('*', { count: 'exact', head: true })
+      .neq('ticker', 'SOL')
       .gte('market_cap', 5000);
 
     if (eligibleError) throw new Error(eligibleError.message);
 
-    // Fetch top momentum tokens sorted by highest price gains
+    // Fetch trending momentum memecoins (excluding native SOL and large caps)
     const { data: trendingCoins, error: trendingError } = await supabase
       .from('tokens_history')
-      .select('mint, name, ticker, market_cap, price_change_24h, created_timestamp')
+      .select('mint, name, ticker, market_cap, price_change_24h, created_timestamp, dex_url')
+      .neq('ticker', 'SOL')
+      .lt('market_cap', 20000000)
       .order('price_change_24h', { ascending: false })
       .limit(10);
 
@@ -41,6 +45,7 @@ export async function GET(req) {
     const { data: tokens, error: tokensError } = await supabase
       .from('tokens_history')
       .select('*')
+      .neq('ticker', 'SOL')
       .order('created_timestamp', { ascending: false })
       .limit(50);
 
