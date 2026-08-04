@@ -1,67 +1,43 @@
-"use client";
-import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+'use client';
+
+import React from 'react';
+import { useUser } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
 
 export default function RequireSubscription({ children }) {
-  const { user, isLoaded, isSignedIn } = useUser();
+  const { user, isLoaded } = useUser();
   const router = useRouter();
-
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      router.push("/sign-in");
-    }
-  }, [isLoaded, isSignedIn, router]);
 
   if (!isLoaded) {
     return (
-      <div className="flex h-screen items-center justify-center bg-black text-white">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-400"></div>
-        <span className="ml-3 text-xs text-zinc-400">Verifying access...</span>
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+        <div className="animate-pulse text-cyan-400 font-bold">Loading DEXlive Security...</div>
       </div>
     );
   }
 
-  if (!isSignedIn) {
-    return null;
-  }
+  const email = user?.primaryEmailAddress?.emailAddress?.toLowerCase();
+  const isSuperAdmin = email === 'rajadsinfo@gmail.com';
+  const hasActiveSub = user?.publicMetadata?.subscriptionStatus === 'active' || isSuperAdmin;
 
-  // Normalize and check all emails for Super Admin Bypass
-  const emails = user.emailAddresses?.map(e => e.emailAddress?.toLowerCase().trim()) || [];
-  const primaryEmail = user.primaryEmailAddress?.emailAddress?.toLowerCase().trim();
-  
-  const isSuperAdmin = 
-    primaryEmail === "rajadsinfo@gmail.com" || 
-    emails.includes("rajadsinfo@gmail.com");
-
-  if (isSuperAdmin) {
-    return children;
-  }
-
-  // Standard Subscription Check for regular users
-  const metadata = user.publicMetadata || {};
-  const tier = metadata.subscriptionTier;
-  const expiry = metadata.subscriptionExpiry || 0;
-  const hasValidSub = Boolean(tier && expiry > Date.now());
-
-  if (!hasValidSub) {
+  if (!hasActiveSub) {
     return (
-      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 text-center">
-        <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-2xl max-w-md shadow-2xl">
-          <div className="text-red-500 font-bold text-lg mb-2">ACCESS RESTRICTED</div>
-          <p className="text-zinc-400 text-xs mb-6">
-            This feature requires an active DEXLive subscription or free trial. Upgrade your wallet to unlock institutional-grade scanning.
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 text-center">
+        <div className="max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl">
+          <h2 className="text-2xl font-extrabold text-red-400 mb-2">ACCESS RESTRICTED</h2>
+          <p className="text-slate-400 text-sm mb-6">
+            ProScanner features require an active subscription or free trial tier.
           </p>
-          <a
-            href="/subscription"
-            className="inline-block bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-3 px-6 rounded-xl transition text-xs shadow-lg shadow-emerald-500/10"
+          <button
+            onClick={() => router.push('/subscription')}
+            className="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-sm rounded-xl shadow-lg transition"
           >
-            Choose Subscription Plan →
-          </a>
+            Upgrade / Start Free Trial 🚀
+          </button>
         </div>
       </div>
     );
   }
 
-  return children;
+  return <>{children}</>;
 }

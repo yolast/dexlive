@@ -35,7 +35,13 @@ export default function ProScannerLayout({ children }) {
           </div>
           <div className="px-3 py-2 space-y-1 text-sm text-slate-400">
             <a href="/proscanner" className="block px-3 py-2 rounded-lg bg-slate-900 text-white font-medium">
-              Live Scanner
+              Live Scanner Hub
+            </a>
+            <a href="/proscanner/pre-migration" className="block px-3 py-2 rounded-lg hover:bg-slate-900/50 hover:text-cyan-400 transition">
+              🚀 Pre-Migration Hub
+            </a>
+            <a href="/proscanner/post-migration" className="block px-3 py-2 rounded-lg hover:bg-slate-900/50 hover:text-indigo-400 transition">
+              📈 Post-Migration Hub
             </a>
             <a href="/subscription" className="block px-3 py-2 rounded-lg hover:bg-slate-900/50 hover:text-white transition">
               Subscription
