@@ -5,7 +5,7 @@ export async function GET(req) {
   try {
     const thirtyMinutesAgoMs = Date.now() - (30 * 60 * 1000);
 
-    // Remove dead/stagnant coins older than 30 minutes
+    // Remove dead/stagnant coins older than 30 minutes with low market cap
     const { error: deleteError } = await supabase
       .from("tokens_history")
       .delete()
