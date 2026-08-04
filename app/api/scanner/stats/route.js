@@ -6,34 +6,25 @@ export async function GET() {
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
-    // 1. Count total raw coins added this month
-    const { count: totalCount, error: totalError } = await supabase
+    // Fast count queries using head: true (zero data transfer overhead)
+    const { count: totalCount } = await supabase
       .from("tokens_history")
       .select("*", { count: "exact", head: true })
       .gte("created_at", firstDayOfMonth);
 
-    if (totalError) {
-      console.error("Total monthly count error:", totalError.message);
-    }
-
-    // 2. Count eligible analyzed coins (passed dead-coin filters)
-    const { count: eligibleCount, error: eligibleError } = await supabase
+    const { count: eligibleCount } = await supabase
       .from("tokens_history")
       .select("*", { count: "exact", head: true })
       .gte("created_at", firstDayOfMonth)
       .or("market_cap.gte.5000,usd_market_cap.gte.5000");
-
-    if (eligibleError) {
-      console.error("Eligible count error:", eligibleError.message);
-    }
 
     return NextResponse.json({
       totalMonthlyCoins: totalCount || 0,
       eligibleCoins: eligibleCount || 0,
     }, { status: 200 });
   } catch (err) {
-    console.error("Scanner Stats API Exception:", err);
-    return NextResponse.json({ totalMonthlyCoins: 0, eligibleCoins: 0 }, { status: 500 });
+    console.error("Scanner Stats API Error:", err);
+    return NextResponse.json({ totalMonthlyCoins: 0, eligibleCoins: 0 }, { status: 200 });
   }
 }
 

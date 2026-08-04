@@ -1,36 +1,31 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-// Initialize Supabase safely using environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { supabase } from "@/lib/supabase";
 
 export async function POST(req) {
   try {
     const body = await req.json();
+    console.log("📥 Helius Webhook Received Payload:", JSON.stringify(body).slice(0, 400));
+
     const transactions = Array.isArray(body) ? body : [body];
 
     for (const tx of transactions) {
       let mintAddress = null;
 
-      // Safe check for token transfers
+      // Extract mint from token transfers
       if (tx?.tokenTransfers && Array.isArray(tx.tokenTransfers) && tx.tokenTransfers.length > 0) {
         mintAddress = tx.tokenTransfers[0]?.mint;
       }
 
-      // Safe check for account data / SPL mints
+      // Extract mint from account data (SPL mint size 82)
       if (!mintAddress && tx?.accountData && Array.isArray(tx.accountData)) {
         const mintAcc = tx.accountData.find(acc => acc?.mint || acc?.space === 82);
         if (mintAcc) mintAddress = mintAcc.account || mintAcc.pubkey;
       }
 
-      // Safe check for NFT / event logs
-      if (!mintAddress && tx?.events?.nft) {
-        mintAddress = tx.events.nft?.mint;
+      if (!mintAddress) {
+        console.log("⚠️ Skipped transaction: No mint address extracted.");
+        continue;
       }
-
-      if (!mintAddress) continue;
 
       const tokenPayload = {
         mint: mintAddress,
@@ -50,13 +45,15 @@ export async function POST(req) {
         .upsert([tokenPayload], { onConflict: "mint" });
 
       if (error) {
-        console.error("Supabase live ingestion error:", error.message);
+        console.error("❌ Supabase Webhook Insert Error:", error.message);
+      } else {
+        console.log(`✅ Successfully added live token: ${mintAddress}`);
       }
     }
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (err) {
-    console.error("Helius Webhook Exception:", err);
+    console.error("🔥 Helius Webhook Critical Exception:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
