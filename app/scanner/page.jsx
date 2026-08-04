@@ -14,7 +14,6 @@ export default function ProScannerPage() {
   const [momentumCoins, setMomentumCoins] = useState([]);
   const [loadingStats, setLoadingStats] = useState(true);
   const [loadingMomentum, setLoadingMomentum] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState("");
 
   // Selected Hubs & Intervals
   const [preInterval, setPreInterval] = useState(2); 
@@ -31,7 +30,6 @@ export default function ProScannerPage() {
         if (res.ok) {
           const data = await res.json();
           setStats(data);
-          setLastUpdated(new Date().toLocaleTimeString());
         }
       } catch (err) {
         console.error("Failed to load scanner stats:", err);
@@ -136,7 +134,7 @@ export default function ProScannerPage() {
           </div>
           <div className="text-xs text-zinc-400 bg-zinc-950 px-3.5 py-2 rounded-xl border border-zinc-800 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-            Auto-syncing every 1m {lastUpdated && `(Last: ${lastUpdated})`}
+            Auto-syncing
           </div>
         </div>
 
@@ -148,7 +146,7 @@ export default function ProScannerPage() {
               <h3 className="text-3xl font-extrabold text-cyan-400 mt-2 transition-all duration-300">
                 {loadingStats ? '...' : stats.totalMonthlyCoins.toLocaleString()}
               </h3>
-              <p className="text-xs text-zinc-500 mt-1">Total raw mints captured in Supabase DB</p>
+              <p className="text-xs text-zinc-500 mt-1">Total raw mints captured</p>
             </div>
             <div className="p-4 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-cyan-400 text-2xl animate-pulse">📦</div>
           </div>
@@ -328,7 +326,6 @@ export default function ProScannerPage() {
                   {momentumCoins.map((coin, index) => {
                     const mint = coin.mint || coin.token_address || coin.address || '';
                     const gainVal = coin.price_change_24h || coin.gain_percentage || '+100%';
-                    // Fixed axiom URL pointing to correct /trade/{mint} route to avoid 404s
                     const axiomUrl = mint 
                       ? `https://axiom.trade/trade/${mint}` 
                       : 'https://axiom.trade';
