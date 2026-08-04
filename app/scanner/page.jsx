@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -327,8 +328,9 @@ export default function ProScannerPage() {
                   {momentumCoins.map((coin, index) => {
                     const mint = coin.mint || coin.token_address || coin.address || '';
                     const gainVal = coin.price_change_24h || coin.gain_percentage || '+100%';
+                    // Fixed axiom URL pointing to correct /trade/{mint} route to avoid 404s
                     const axiomUrl = mint 
-                      ? `https://axiom.trade/t/${mint}` 
+                      ? `https://axiom.trade/trade/${mint}` 
                       : 'https://axiom.trade';
 
                     return (
