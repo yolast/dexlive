@@ -1,39 +1,40 @@
-import { supabase } from '@/lib/supabase';
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
+import { supabase } from "@/lib/supabase";
 
-export async function GET(req) {
+export async function GET() {
   try {
-    const { data: allTokens, error: fetchError } = await supabase
-      .from('tokens_history')
-      .select('*')
-      .order('created_timestamp', { ascending: false });
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
-    if (fetchError) {
-      console.error("Stats API database error:", fetchError.message);
-      return NextResponse.json({ success: false, error: fetchError.message }, { status: 500 });
+    // 1. Count total raw coins added this month
+    const { count: totalCount, error: totalError } = await supabase
+      .from("tokens_history")
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", firstDayOfMonth);
+
+    if (totalError) {
+      console.error("Total monthly count error:", totalError.message);
     }
 
-    const tokens = allTokens || [];
-    const totalMonthlyCoins = tokens.length;
+    // 2. Count eligible analyzed coins (passed dead-coin filters)
+    const { count: eligibleCount, error: eligibleError } = await supabase
+      .from("tokens_history")
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", firstDayOfMonth)
+      .or("market_cap.gte.5000,usd_market_cap.gte.5000");
 
-    // Filter eligible analysis candidates (passed dead-coin purge criteria)
-    const eligibleCoins = tokens.filter(t => (t.market_cap || 0) >= 5000 || (t.bonding_curve || 0) > 3).length;
-
-    // Filter trending coins (gainers >= 100%)
-    const trendingCoins = tokens.filter(t => {
-      const gain = t.price_change_24h || t.gain_percentage || 15;
-      return gain >= 100;
-    });
+    if (eligibleError) {
+      console.error("Eligible count error:", eligibleError.message);
+    }
 
     return NextResponse.json({
-      success: true,
-      totalMonthlyCoins,
-      eligibleCoins,
-      trendingCoins
-    });
-
+      totalMonthlyCoins: totalCount || 0,
+      eligibleCoins: eligibleCount || 0,
+    }, { status: 200 });
   } catch (err) {
-    console.error("Stats API Exception:", err);
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    console.error("Scanner Stats API Exception:", err);
+    return NextResponse.json({ totalMonthlyCoins: 0, eligibleCoins: 0 }, { status: 500 });
   }
 }
+
+export const dynamic = "force-dynamic";

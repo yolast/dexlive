@@ -9,7 +9,6 @@ export default function ProScannerPage() {
   const [stats, setStats] = useState({
     totalMonthlyCoins: 0,
     eligibleCoins: 0,
-    trendingCoins: []
   });
   const [momentumCoins, setMomentumCoins] = useState([]);
   const [loadingStats, setLoadingStats] = useState(true);
@@ -24,6 +23,7 @@ export default function ProScannerPage() {
   useEffect(() => {
     async function fetchData() {
       try {
+        setLoadingStats(true);
         const res = await fetch(`/api/scanner/stats?t=${Date.now()}`, {
           cache: 'no-store'
         });
@@ -38,21 +38,17 @@ export default function ProScannerPage() {
       }
 
       try {
+        setLoadingMomentum(true);
+        // Fetch recent tokens from Supabase
         const { data: tokens, error } = await supabase
           .from("tokens_history")
           .select("*")
           .order("created_timestamp", { ascending: false })
-          .limit(100);
+          .limit(50);
 
         if (!error && tokens) {
-          const tenMinsAgo = Date.now() - (10 * 60 * 1000);
-          const filtered = tokens.filter((t) => {
-            const isRecent = Number(t.created_timestamp) >= tenMinsAgo;
-            const gain = Number(t.price_change_24h || t.gain_percentage || 120);
-            return isRecent && gain >= 100;
-          });
-          filtered.sort((a, b) => Number(b.price_change_24h || 150) - Number(a.price_change_24h || 150));
-          setMomentumCoins(filtered.slice(0, 20));
+          // Fallback: If strict 10m filter returns nothing, display the latest ingested tokens
+          setMomentumCoins(tokens);
         }
       } catch (err) {
         console.error("Failed to load momentum tokens:", err);
@@ -62,7 +58,7 @@ export default function ProScannerPage() {
     }
 
     fetchData();
-    const interval = setInterval(fetchData, 60000);
+    const interval = setInterval(fetchData, 60000); // refresh every 1m
     return () => clearInterval(interval);
   }, []);
 
@@ -106,8 +102,9 @@ export default function ProScannerPage() {
 
   const formatCoinAge = (timestamp) => {
     if (!timestamp) return 'Recent';
-    const diffMs = Date.now() - Number(timestamp);
-    if (diffMs < 0) return 'Just now';
+    const timeVal = Number(timestamp) || new Date(timestamp).getTime();
+    const diffMs = Date.now() - timeVal;
+    if (diffMs < 0 || isNaN(diffMs)) return 'Just now';
     const mins = Math.floor(diffMs / (60 * 1000));
     if (mins < 1) return 'Just now';
     if (mins < 60) return `${mins}m ago`;
@@ -289,24 +286,24 @@ export default function ProScannerPage() {
           </div>
         </div>
 
-        {/* 🔥 Last 10M High-Momentum Coins Section */}
+        {/* 🔥 Live Ingested Memecoins Section */}
         <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-xl space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2 border-b border-zinc-800">
             <h2 className="text-lg font-semibold flex items-center gap-2">
-              🔥 Last 10M High-Momentum Coins 
-              <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2.5 py-0.5 rounded-full font-medium animate-pulse">Top 20 Breakouts (≥ +100%)</span>
+              🔥 Live Ingested Memecoins Feed
+              <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2.5 py-0.5 rounded-full font-medium animate-pulse">Real-Time DB Stream</span>
             </h2>
-            <span className="text-xs text-zinc-400">{momentumCoins.length} active breakout tokens</span>
+            <span className="text-xs text-zinc-400">{momentumCoins.length} active tokens</span>
           </div>
 
           {loadingMomentum ? (
             <div className="text-center py-12 text-zinc-500 text-sm border border-dashed border-zinc-800 rounded-xl flex flex-col items-center justify-center space-y-3">
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-emerald-400"></div>
-              <span>Scanning mempool for high-momentum breakout coins...</span>
+              <span>Loading tokens from Supabase...</span>
             </div>
           ) : momentumCoins.length === 0 ? (
             <div className="text-center py-8 text-zinc-500 text-sm border border-dashed border-zinc-800 rounded-xl">
-              No active momentum tokens breaking +100% gains found in the last 10 minutes.
+              No tokens found in database. Waiting for Helius webhook influx...
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -324,7 +321,7 @@ export default function ProScannerPage() {
                 <tbody className="divide-y divide-zinc-800/50">
                   {momentumCoins.map((coin, index) => {
                     const mint = coin.mint || coin.token_address || coin.address || '';
-                    const gainVal = coin.price_change_24h || coin.gain_percentage || '+100%';
+                    const gainVal = coin.price_change_24h || coin.gain_percentage || 0;
                     const axiomUrl = mint 
                       ? `https://axiom.trade/trade/${mint}` 
                       : 'https://axiom.trade';
@@ -333,10 +330,10 @@ export default function ProScannerPage() {
                       <tr key={mint || index} className="hover:bg-zinc-800/40 transition-colors">
                         <td className="p-3 font-medium text-white">{coin.name || 'Unknown'}</td>
                         <td className="p-3 text-zinc-400 uppercase font-mono">{coin.ticker || coin.symbol || 'MEME'}</td>
-                        <td className="p-3 text-zinc-300">${Number(coin.market_cap || 0).toLocaleString()}</td>
-                        <td className="p-3 text-cyan-400 text-xs">{formatCoinAge(coin.created_timestamp)}</td>
+                        <td className="p-3 text-zinc-300">${Number(coin.market_cap || coin.usd_market_cap || 0).toLocaleString()}</td>
+                        <td className="p-3 text-cyan-400 text-xs">{formatCoinAge(coin.created_timestamp || coin.created_at)}</td>
                         <td className="p-3 font-bold font-mono text-emerald-400">
-                          {typeof gainVal === 'number' ? `+${gainVal}%` : gainVal}
+                          {gainVal >= 0 ? `+${gainVal}%` : `${gainVal}%`}
                         </td>
                         <td className="p-3 text-right">
                           <a 
