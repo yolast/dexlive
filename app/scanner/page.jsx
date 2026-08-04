@@ -62,11 +62,10 @@ export default function ProScannerPage() {
     }
 
     fetchData();
-    const interval = setInterval(fetchData, 60000); // refresh every 1m
+    const interval = setInterval(fetchData, 60000);
     return () => clearInterval(interval);
   }, []);
 
-  // Cooldown timers
   useEffect(() => {
     const timer = setInterval(() => {
       setPreCooldownTime((prev) => (prev > 0 ? prev - 1 : 0));
@@ -138,7 +137,7 @@ export default function ProScannerPage() {
           </div>
         </div>
 
-        {/* Quick Metrics Bar (2 columns) */}
+        {/* Quick Metrics Bar */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl flex items-center justify-between shadow-lg">
             <div>
@@ -169,7 +168,7 @@ export default function ProScannerPage() {
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             
-            {/* 1. Pre-Migration Hub Card (Pump.fun) */}
+            {/* 1. Pre-Migration Hub Card */}
             <div className="bg-gradient-to-b from-zinc-900 to-zinc-950 border border-emerald-500/40 rounded-2xl p-6 shadow-2xl relative hover:border-emerald-400 transition">
               <div className="flex items-center justify-between mb-4">
                 <span className="px-3 py-1 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 uppercase tracking-widest">
@@ -228,7 +227,7 @@ export default function ProScannerPage() {
               </div>
             </div>
 
-            {/* 2. Post-Migration Hub Card (Raydium) */}
+            {/* 2. Post-Migration Hub Card */}
             <div className="bg-gradient-to-b from-zinc-900 to-zinc-950 border border-green-500/40 rounded-2xl p-6 shadow-2xl relative hover:border-green-400 transition">
               <div className="flex items-center justify-between mb-4">
                 <span className="px-3 py-1 rounded text-[10px] font-bold bg-green-500/20 text-green-400 uppercase tracking-widest">

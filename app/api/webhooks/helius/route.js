@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+
+// Initialize Supabase safely using environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function POST(req) {
   try {
@@ -9,27 +14,27 @@ export async function POST(req) {
     for (const tx of transactions) {
       let mintAddress = null;
 
-      // Method 1: Check standard token transfers
-      if (tx.tokenTransfers && tx.tokenTransfers.length > 0) {
-        mintAddress = tx.tokenTransfers[0].mint;
+      // Safe check for token transfers
+      if (tx?.tokenTransfers && Array.isArray(tx.tokenTransfers) && tx.tokenTransfers.length > 0) {
+        mintAddress = tx.tokenTransfers[0]?.mint;
       }
 
-      // Method 2: Check account data for SPL Mint accounts (size 82 bytes) or explicit mint field
-      if (!mintAddress && tx.accountData) {
-        const mintAcc = tx.accountData.find(acc => acc.mint || acc.space === 82);
+      // Safe check for account data / SPL mints
+      if (!mintAddress && tx?.accountData && Array.isArray(tx.accountData)) {
+        const mintAcc = tx.accountData.find(acc => acc?.mint || acc?.space === 82);
         if (mintAcc) mintAddress = mintAcc.account || mintAcc.pubkey;
       }
 
-      // Method 3: Check transaction instructions or event logs
-      if (!mintAddress && tx.events?.nft) {
-        mintAddress = tx.events.nft.mint;
+      // Safe check for NFT / event logs
+      if (!mintAddress && tx?.events?.nft) {
+        mintAddress = tx.events.nft?.mint;
       }
 
       if (!mintAddress) continue;
 
       const tokenPayload = {
         mint: mintAddress,
-        name: tx.description ? tx.description.slice(0, 50) : "Pump.fun Token",
+        name: tx?.description ? tx.description.slice(0, 50) : "Pump.fun Token",
         symbol: "PUMP",
         created_timestamp: Date.now(),
         bonding_curve_progress: 0.0,
