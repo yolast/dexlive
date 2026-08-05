@@ -2,7 +2,6 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
 const isProtectedRange = createRouteMatcher([
   '/proscanner(.*)',
-  '/subscription(.*)',
   '/scanner(.*)',
   '/list(.*)',
   '/api/pipeline(.*)'
