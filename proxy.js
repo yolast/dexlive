@@ -1,5 +1,4 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
-import { NextResponse } from 'next/server';
 
 const isProtectedRange = createRouteMatcher([
   '/proscanner(.*)',
@@ -11,13 +10,8 @@ const isProtectedRange = createRouteMatcher([
 
 export default clerkMiddleware(async (auth, req) => {
   if (isProtectedRange(req)) {
-    const session = await auth();
-    if (!session?.userId) {
-      return auth.redirectToSignIn();
-    }
+    await auth.protect();
   }
-  
-  return NextResponse.next();
 });
 
 export const config = {
